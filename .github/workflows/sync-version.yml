@@ -1,0 +1,52 @@
+name: Sync Public Assets
+
+on:
+  repository_dispatch:
+    types: [sync-version]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.PAT }}
+
+      - name: Load version
+        run: |
+          echo "VERSION=${{ github.event.client_payload.version }}" >> $GITHUB_ENV
+
+      - name: Create branch
+        run: |
+          BRANCH="sync-assets-v${VERSION}"
+          git checkout -b "$BRANCH"
+          echo "BRANCH=$BRANCH" >> $GITHUB_ENV
+
+      - name: Update public JS/CSS
+        run: |
+          rm -rf public/*
+          cp -R dist/* public/
+
+      - name: Commit and push
+        run: |
+          git config user.name "CI Bot"
+          git config user.email "ci@github.com"
+          git add public
+          git commit -m "chore: update public assets v${VERSION}"
+          git push origin "$BRANCH"
+
+      - name: Create Pull Request
+        env:
+          GH_TOKEN: ${{ secrets.PAT }}
+        run: |
+          gh pr create \
+            --base master \
+            --head "$BRANCH" \
+            --title "Update public assets v${VERSION}" \
+            --body "Automated JS/CSS update for version v${VERSION}"
