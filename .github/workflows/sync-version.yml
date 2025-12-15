@@ -1,4 +1,4 @@
-name: Sync Public Assets
+name: Sync Public Assets – WordPress
 
 on:
   repository_dispatch:
@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repo
+      - name: Checkout repository (FIXED)
         uses: actions/checkout@v4
         with:
           token: ${{ secrets.PAT }}
@@ -35,18 +35,8 @@ jobs:
 
       - name: Commit and push
         run: |
-          git config user.name "srkdev404-cyber"
-          git config user.email "srkdev404@gmail.com"
+          git config user.name "CI Bot"
+          git config user.email "ci@github.com"
           git add public
-          git commit -m "chore: update public assets v${VERSION}"
+          git commit -m "chore: update assets v${VERSION}"
           git push origin "$BRANCH"
-
-      - name: Create Pull Request
-        env:
-          GH_TOKEN: ${{ secrets.PAT }}
-        run: |
-          gh pr create \
-            --base master \
-            --head "$BRANCH" \
-            --title "Update public assets v${VERSION}" \
-            --body "Automated JS/CSS update for version v${VERSION}"
