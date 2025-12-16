@@ -1,8 +1,8 @@
-name: Sync Public Assets – WordPress
+name: Sync Version From Main Repo
 
 on:
   repository_dispatch:
-    types: [sync-version]
+    types: [version_update]
 
 permissions:
   contents: write
@@ -13,30 +13,41 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository (FIXED)
+      - name: Checkout Repo
         uses: actions/checkout@v4
-        with:
-          token: ${{ secrets.PAT }}
 
-      - name: Load version
-        run: |
-          echo "VERSION=${{ github.event.client_payload.version }}" >> $GITHUB_ENV
+      - name: Read Version From Dispatch Event
+        id: version
+        run: echo "VERSION=${{ github.event.client_payload.version }}" >> $GITHUB_OUTPUT
 
-      - name: Create branch
+      - name: Update version inside public js/css files
         run: |
-          BRANCH="sync-assets-v${VERSION}"
-          git checkout -b "$BRANCH"
-          echo "BRANCH=$BRANCH" >> $GITHUB_ENV
+          echo "Applying version ${{ steps.version.outputs.VERSION }} to child repo"
 
-      - name: Update public JS/CSS
-        run: |
-          rm -rf public/*
-          cp -R dist/* public/
+          # Update JS files
+          find ./public -type f -name "*.js" -exec sed -i \
+            "s/version:.*/version: '${{ steps.version.outputs.VERSION }}'/g" {} \;
 
-      - name: Commit and push
+          # Update CSS files
+          find ./public -type f -name "*.css" -exec sed -i \
+            "s/version:.*/version: '${{ steps.version.outputs.VERSION }}'/g" {} \;
+
+      - name: Create Version Sync Branch
         run: |
-          git config user.name "srkdev404-cyber"
-          git config user.email "srkdev404@gmail.com"
+          git checkout -b version-sync-${{ steps.version.outputs.VERSION }}
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
           git add public
-          git commit -m "chore: update assets v${VERSION}"
-          git push origin "$BRANCH"
+          git commit -m "chore: sync version to ${{ steps.version.outputs.VERSION }}" || echo "No changes"
+
+      - name: Push Branch
+        run: |
+          git push origin version-sync-${{ steps.version.outputs.VERSION }}
+
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v6
+        with:
+          branch: version-sync-${{ steps.version.outputs.VERSION }}
+          base: main
+          title: "Version Sync: ${{ steps.version.outputs.VERSION }}"
+          body: "Automated version bump. Merge when validated."
