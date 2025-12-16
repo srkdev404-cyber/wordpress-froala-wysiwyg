@@ -1,54 +1,40 @@
-name: Auto Release
+name: Auto Release (WordPress)
 
 on:
-  push:
-    tags:
-      - "v*.*.*"
+  pull_request:
+    types: [closed]
+    branches: [master]
 
 permissions:
   contents: write
-  actions: write
+  pull-requests: write
 
 jobs:
-  auto_release:
+  release:
+    if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout Repo
-        uses: actions/checkout@v4
-
-      - name: Extract Version
-        id: version
-        run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
-
-      - name: Update version in JS and CSS files
-        run: |
-          echo "Updating version to ${{ steps.version.outputs.VERSION }} in ./public/"
-          
-          # Update in all JS files
-          find ./public -type f -name "*.js" -exec sed -i \
-            "s/version:.*/version: '${{ steps.version.outputs.VERSION }}'/g" {} \;
-
-          # Update in all CSS gmail
-          find ./public -type f -name "*.css" -exec sed -i \
-            "s/version:.*/version: '${{ steps.version.outputs.VERSION }}'/g" {} \;
-
-      - name: Commit Updated Files
-        run: |
-          git config user.name "srkdev4040-cyber"
-          git config user.email "srkdev404@.com"
-          git add ./public
-          git commit -m "chore: update version to ${{ steps.version.outputs.VERSION }}" || echo "No changes to commit"
-
-      - name: Push Changes
-        run: |
-          git push origin HEAD:main || echo "Already up-to-date"
-
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v1
+      - name: Validate release intent
+        id: check
+        uses: actions/github-script@v6
         with:
-          tag_name: ${{ steps.version.outputs.VERSION }}
-          name: Release ${{ steps.version.outputs.VERSION }}
-          generate_release_notes: true
+          github-token: ${{ secrets.PAT }}
+          script: |
+            const msg = context.payload.pull_request.title + " " +
+                        context.payload.pull_request.body;
+            core.setOutput("release", /release:\s*yes/i.test(msg) ? "true" : "false");
+
+      - if: steps.check.outputs.release == 'false'
+        run: exit 0
+
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.PAT }}
+
+      - uses: softprops/action-gh-release@v1
+        with:
+          tag_name: "v${{ github.event.pull_request.title }}"
+          name: "WordPress Release"
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.PAT }}
