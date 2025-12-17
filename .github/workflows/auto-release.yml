@@ -1,9 +1,10 @@
-name: Auto Release (WordPress)
+name: Auto Release – WordPress
 
 on:
   pull_request:
     types: [closed]
-    branches: [master]
+    branches:
+      - master
 
 permissions:
   contents: write
@@ -13,28 +14,63 @@ jobs:
   release:
     if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
+    environment: PAT
 
     steps:
-      - name: Validate release intent
+      # ----------------------------------------
+      # Require "release: yes"
+      # ----------------------------------------
+      - name: Check release intent
         id: check
         uses: actions/github-script@v6
         with:
           github-token: ${{ secrets.PAT }}
           script: |
-            const msg = context.payload.pull_request.title + " " +
-                        context.payload.pull_request.body;
-            core.setOutput("release", /release:\s*yes/i.test(msg) ? "true" : "false");
+            const text =
+              (context.payload.pull_request.title || '') + ' ' +
+              (context.payload.pull_request.body || '');
+            core.setOutput(
+              'release',
+              /release:\s*yes/i.test(text) ? 'true' : 'false'
+            );
 
-      - if: steps.check.outputs.release == 'false'
+      - name: Stop if not release
+        if: steps.check.outputs.release == 'false'
         run: exit 0
 
-      - uses: actions/checkout@v4
+      # ----------------------------------------
+      # Checkout merged code
+      # ----------------------------------------
+      - name: Checkout repository
+        uses: actions/checkout@v4
         with:
           token: ${{ secrets.PAT }}
 
-      - uses: softprops/action-gh-release@v1
+      # ----------------------------------------
+      # Determine version from main repo dispatch tag
+      # (fallback: package.json or readme if needed)
+      # ----------------------------------------
+      - name: Read version
+        run: |
+          VERSION="${{ github.event.pull_request.head.ref }}"
+          VERSION="${VERSION#release-v}"
+
+          if [ -z "$VERSION" ]; then
+            echo "Version not detected"
+            exit 1
+          fi
+
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+          echo "Version: $VERSION"
+
+      # ----------------------------------------
+      # Create GitHub Release
+      # ----------------------------------------
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
         with:
-          tag_name: "v${{ github.event.pull_request.title }}"
-          name: "WordPress Release"
+          tag_name: "v${{ env.VERSION }}"
+          name: "WordPress Release v${{ env.VERSION }}"
+          generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.PAT }}
