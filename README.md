@@ -24,7 +24,6 @@ when installing new plugins.
 Go to your plugins page inside the admin area of your WordPress installation and activate the plugin.
 **The plugin will replace the default editor**.
 
-
 ## Usage
 
 The plugin can be used under the admin area as soon as it is active.
