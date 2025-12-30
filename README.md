@@ -58,7 +58,7 @@ define('FroalaCustomCSSFolderPath', '/'.basename(__DIR__).'/custom/css');
  * @param null $type        * Can be js or css
  * @param string $prop      * Can be inline|file
  * @param null $mix         * If prop = file, mix will be the file name else if prop = inline mix will be the data.
- *
+
  * @return array|WP_Error
  *
  *
