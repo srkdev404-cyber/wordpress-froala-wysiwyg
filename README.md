@@ -5,7 +5,6 @@
 
 Version: 3.3.0 up to present versions of WordPress.
 
-
 ## Manual Installation
 
 Clone or [download the contents of this repo](https://github.com/froala/wordpress-froala-wysiwyg/archive/master.zip), make a new folder inside your WordPress installation under plugins folder.
