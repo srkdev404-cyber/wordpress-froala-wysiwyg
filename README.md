@@ -87,7 +87,6 @@ if( is_wp_error( $hook ) ) {
 
 // Same as the example above but it includes a javascript file and the action of the hook it's before Froala Editor's initialization.
 $hook = apply_filters('froala_before_public_init', $custom_js_path.'/test.js', 'js', 'file','test');
-
 if( is_wp_error( $hook ) ) {
   echo $hook->get_error_message();
 }
