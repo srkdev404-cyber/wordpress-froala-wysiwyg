@@ -11,13 +11,14 @@ permissions:
 jobs:
   sync:
     runs-on: ubuntu-latest
-    environment: PAT
+    environment: PAT   # <<< THIS IS THE KEY FIX
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           token: ${{ secrets.PAT }}
+          fetch-depth: 1
 
       - name: Read version
         run: |
