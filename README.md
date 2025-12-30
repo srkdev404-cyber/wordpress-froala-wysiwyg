@@ -44,7 +44,6 @@ define('FroalaCustomJSFolderPath', '/'.basename(__DIR__).'/custom/js');
 define('FroalaCustomCSSFolderPath', '/'.basename(__DIR__).'/custom/css');
 
 ```
-
 #### Public hooks:
 
 ```php
