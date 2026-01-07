@@ -8,7 +8,6 @@ on:
 
 permissions:
   contents: write
-  pull-requests: write
 
 jobs:
   release:
@@ -47,8 +46,7 @@ jobs:
           token: ${{ secrets.PAT }}
 
       # ----------------------------------------
-      # Determine version from main repo dispatch tag
-      # (fallback: package.json or readme if needed)
+      # Read version from release branch
       # ----------------------------------------
       - name: Read version
         run: |
@@ -64,13 +62,13 @@ jobs:
           echo "Version: $VERSION"
 
       # ----------------------------------------
-      # Create GitHub Release
+      # Create GitHub Release (NO auto notes)
       # ----------------------------------------
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           tag_name: "v${{ env.VERSION }}"
           name: "WordPress Release v${{ env.VERSION }}"
-          generate_release_notes: true
+          body_path: release_notes.txt
         env:
           GITHUB_TOKEN: ${{ secrets.PAT }}
