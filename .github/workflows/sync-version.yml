@@ -11,39 +11,61 @@ permissions:
 jobs:
   sync:
     runs-on: ubuntu-latest
-    environment: PAT   # <<< THIS IS THE KEY FIX
+    environment: PAT
 
     steps:
+      # --------------------------------------------
+      # Checkout repository
+      # --------------------------------------------
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           token: ${{ secrets.PAT }}
           fetch-depth: 1
 
-      - name: Read version
+      # --------------------------------------------
+      # Load version & release notes
+      # --------------------------------------------
+      - name: Load payload
         run: |
-          VERSION="${{ github.event.client_payload.version }}"
-          echo "VERSION=$VERSION" >> $GITHUB_ENV
+          echo "VERSION=${{ github.event.client_payload.version }}" >> $GITHUB_ENV
+          echo "${{ github.event.client_payload.release_notes }}" > release_notes.txt
+          echo "Version: $VERSION"
 
+      # --------------------------------------------
+      # Update JS/CSS versions
+      # --------------------------------------------
       - name: Update JS/CSS versions
         run: |
-          find ./public -type f -name "*.js"  -exec sed -i "s/[0-9]\+\.[0-9]\+\.[0-9]\+/${{ env.VERSION }}/g" {} \;
-          find ./public -type f -name "*.css" -exec sed -i "s/[0-9]\+\.[0-9]\+\.[0-9]\+/${{ env.VERSION }}/g" {} \;
+          find ./public -type f -name "*.js"  \
+            -exec sed -i "s/[0-9]\+\.[0-9]\+\.[0-9]\+/${VERSION}/g" {} \;
 
+          find ./public -type f -name "*.css" \
+            -exec sed -i "s/[0-9]\+\.[0-9]\+\.[0-9]\+/${VERSION}/g" {} \;
+
+      # --------------------------------------------
+      # Commit & push release branch
+      # --------------------------------------------
       - name: Commit changes
         run: |
-          git checkout -B sync-${{ env.VERSION }}
+          git checkout -B release-v${VERSION}
+
           git config user.name "srkdev404-cyber"
           git config user.email "srkdev404@gmail.com"
-          git add public
-          git commit -m "chore: sync WordPress version ${{ env.VERSION }}" || true
-          git push origin sync-${{ env.VERSION }} --force
 
+          git add public release_notes.txt
+          git commit -m "chore: release WordPress plugin v${VERSION}"
+          git push origin release-v${VERSION} --force
+
+      # --------------------------------------------
+      # Create Pull Request
+      # --------------------------------------------
       - name: Create Pull Request
-        uses: peter-evans/create-pull-request@v6
-        with:
-          token: ${{ secrets.PAT }}
-          branch: sync-${{ env.VERSION }}
-          base: master
-          title: "Sync Version ${{ env.VERSION }}"
-          body: "Automated version sync for WordPress plugin."
+        env:
+          GH_TOKEN: ${{ secrets.PAT }}
+        run: |
+          gh pr create \
+            --base master \
+            --head release-v${VERSION} \
+            --title "Release v${VERSION}" \
+            --body "release: yes"
