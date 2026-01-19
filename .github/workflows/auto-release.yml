@@ -70,6 +70,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.PAT }}
         run: |
-          gh release create "wp-v${VERSION}" \
-            --title "WordPress Release v${VERSION}" \
-            --notes "${{ github.event.pull_request.body }}"
+          gh release create "v${VERSION}" \
+            --title "Release ${VERSION}" \
+            --notes "${{ github.event.pull_request.body }}" \
+            *.gem
