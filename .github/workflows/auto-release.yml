@@ -45,7 +45,6 @@ jobs:
         with:
           token: ${{ secrets.PAT }}
           fetch-depth: 0
-
       # --------------------------------------------
       # Resolve & validate version from PR branch
       # --------------------------------------------
