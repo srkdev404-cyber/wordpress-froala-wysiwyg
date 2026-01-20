@@ -73,4 +73,4 @@ jobs:
           gh release create "v${VERSION}" \
             --title "Release ${VERSION}" \
             --notes "${{ github.event.pull_request.body }}" \
-            *.gem
+           
