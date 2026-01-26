@@ -13,7 +13,7 @@ jobs:
 
     steps:
       # --------------------------------------------
-      # Load version & release notes from primary repo
+      # Load & validate version + release notes
       # --------------------------------------------
       - name: Load version & release notes
         run: |
@@ -22,8 +22,13 @@ jobs:
 
           VERSION="${VERSION//,/\.}"
 
+          if [ -z "$VERSION" ]; then
+            echo "❌ Version missing in dispatch payload"
+            exit 1
+          fi
+
           if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
-            echo "Invalid version format: $VERSION"
+            echo "❌ Invalid version format: $VERSION"
             exit 1
           fi
 
@@ -42,7 +47,7 @@ jobs:
           fetch-depth: 0
 
       # --------------------------------------------
-      # Create GitHub Release (PRIMARY NOTES ONLY)
+      # Create GitHub Release (NO build artifacts)
       # --------------------------------------------
       - name: Create GitHub Release
         env:
@@ -51,4 +56,4 @@ jobs:
           gh release create "v${VERSION}" \
             --title "Release ${VERSION}" \
             --notes "$RELEASE_NOTES" \
-            --generate-notes=false
+            --latest
