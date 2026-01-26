@@ -20,6 +20,7 @@ when installing new plugins.
 
 ## Integration
 
+
 Go to your plugins page inside the admin area of your WordPress installation and activate the plugin.
 **The plugin will replace the default editor**.
 
