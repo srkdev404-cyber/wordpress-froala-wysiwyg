@@ -1,9 +1,11 @@
+
 name: Auto Release – WordPress
 
 on:
-  repository_dispatch:
-    types: [version_update]
-
+  pull_request:
+    types: [closed]
+    branches:
+      - master
 permissions:
   contents: write
 
