@@ -23,15 +23,20 @@ jobs:
           fetch-depth: 0
 
       # --------------------------------------------
-      # Load & validate version
+      # Load & validate version (from primary repo)
       # --------------------------------------------
       - name: Load & validate version
         run: |
           VERSION="${{ github.event.client_payload.version }}"
           VERSION="${VERSION//,/\.}"
 
+          if [ -z "$VERSION" ]; then
+            echo "❌ Version missing in dispatch payload"
+            exit 1
+          fi
+
           if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
-            echo "Invalid version: $VERSION"
+            echo "❌ Invalid version format: $VERSION"
             exit 1
           fi
 
@@ -56,37 +61,41 @@ jobs:
           fi
 
       # --------------------------------------------
-      # Update JS/CSS versions
+      # Sync assets from primary repo (OPTIONAL but recommended)
+      # --------------------------------------------
+      - name: Sync assets from primary repo
+        env:
+          GIT_TOKEN: ${{ secrets.PAT }}
+        run: |
+          git clone --depth 1 \
+            "https://x-access-token:${GIT_TOKEN}@github.com/srkdev404-cyber/wysiwyg-editor.git" \
+            /tmp/wysiwyg-main
+
+          rsync -av --delete /tmp/wysiwyg-main/js/ public/js/
+          rsync -av --delete /tmp/wysiwyg-main/css/ public/css/
+
+      # --------------------------------------------
+      # Update JS/CSS version references
       # --------------------------------------------
       - name: Update JS/CSS versions
         run: |
-          find ./public -type f -name "*.js" \
-            -exec sed -i "s/[0-9]\+\.[0-9]\+\.[0-9]\+/${VERSION}/g" {} \;
-
-          find ./public -type f -name "*.css" \
-            -exec sed -i "s/[0-9]\+\.[0-9]\+\.[0-9]\+/${VERSION}/g" {} \;
-            
-          find ./admin -type f -name "*.js" \
-            -exec sed -i "s/[0-9]\+\.[0-9]\+\.[0-9]\+/${VERSION}/g" {} \;
-
-          find ./admin -type f -name "*.css" \
-            -exec sed -i "s/[0-9]\+\.[0-9]\+\.[0-9]\+/${VERSION}/g" {} \;
-
+          find public admin -type f \( -name "*.js" -o -name "*.css" \) \
+            -exec sed -i -E "s/[0-9]+\.[0-9]+\.[0-9]+/${VERSION}/g" {} \;
 
       # --------------------------------------------
       # Commit & push
       # --------------------------------------------
       - name: Commit & push
         run: |
-          git config user.name "froala-travis-bot"
-          git config user.email "froala_git_travis_bot@idera.com"
-          
-          git add public
+          git config user.name "srkdev404-cyber"
+          git config user.email "srkdev404@gmail.com"
+
+          git add public admin
           git commit -m "chore: release WordPress plugin v${VERSION}" || echo "Nothing to commit"
           git push origin "$BRANCH"
 
       # --------------------------------------------
-      # Create Pull Request (only if diff exists)
+      # Create Pull Request (Rails-style, release-gated)
       # --------------------------------------------
       - name: Create Pull Request
         env:
@@ -94,18 +103,19 @@ jobs:
           RELEASE_NOTES: ${{ github.event.client_payload.release_notes }}
         run: |
           git fetch origin master
-          
+
           if git diff --quiet origin/master..."$BRANCH"; then
-          echo "ℹ️ No commits between $BRANCH and master. Skipping PR creation."
-          exit 0
+            echo "ℹ️ No commits between $BRANCH and master. Skipping PR creation."
+            exit 0
           fi
 
-          PR_BODY=$(printf "release: yes\n\n## Release Notes (from primary repo)\n\n%s\n" "$RELEASE_NOTES")
+          PR_BODY=$(printf \
+            "release: yes\n\n## Release Notes (from primary repo)\n\n%s\n" \
+            "$RELEASE_NOTES")
 
           gh pr create \
             --base master \
             --head "$BRANCH" \
             --title "Release v${VERSION}" \
-            --body "$PR_BODY"  
-
-      
+            --body "$PR_BODY" \
+            || echo "Pull request already exists"
