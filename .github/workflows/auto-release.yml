@@ -1,4 +1,3 @@
-
 name: Auto Release – WordPress
 
 on:
@@ -6,26 +5,60 @@ on:
     types: [closed]
     branches:
       - master
+
 permissions:
   contents: write
 
 jobs:
   release:
+    # Run only when PR is merged
+    if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
 
     steps:
       # --------------------------------------------
-      # Load & validate version + release notes
+      # Validate release intent
       # --------------------------------------------
-      - name: Load version & release notes
-        run: |
-          VERSION="${{ github.event.client_payload.version }}"
-          NOTES="${{ github.event.client_payload.release_notes }}"
+      - name: Validate release intent
+        id: intent
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const body = context.payload.pull_request.body || '';
+            const title = context.payload.pull_request.title || '';
+            const text = `${title}\n${body}`;
 
-          VERSION="${VERSION//,/\.}"
+            core.setOutput(
+              'release',
+              /release:\s*yes/i.test(text) ? 'true' : 'false'
+            );
+
+      - name: Stop if not a release PR
+        if: steps.intent.outputs.release == 'false'
+        run: |
+          echo "ℹ️ Not a release PR. Skipping auto-release."
+          exit 0
+
+      # --------------------------------------------
+      # Checkout merged code
+      # --------------------------------------------
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.PAT }}
+          fetch-depth: 0
+
+      # --------------------------------------------
+      # Read version from repo (SOURCE OF TRUTH)
+      # Adjust this if you store version elsewhere
+      # --------------------------------------------
+      - name: Read version from assets
+        run: |
+          # Example: extract version from any JS/CSS reference
+          VERSION=$(grep -RhoE '[0-9]+\.[0-9]+\.[0-9]+' public | head -n1)
 
           if [ -z "$VERSION" ]; then
-            echo "❌ Version missing in dispatch payload"
+            echo "❌ Failed to determine version from repository"
             exit 1
           fi
 
@@ -35,21 +68,25 @@ jobs:
           fi
 
           echo "VERSION=$VERSION" >> $GITHUB_ENV
+          echo "✅ Releasing version $VERSION"
+
+      # --------------------------------------------
+      # Prepare clean release notes from PR body
+      # --------------------------------------------
+      - name: Prepare release notes
+        run: |
+          PR_BODY="${{ github.event.pull_request.body }}"
+
+          CLEAN_NOTES=$(echo "$PR_BODY" | sed \
+            -e '/^release:\s*/Id' \
+            -e '/^## Release Notes.*$/Id')
+
           echo "RELEASE_NOTES<<EOF" >> $GITHUB_ENV
-          echo "$NOTES" >> $GITHUB_ENV
+          echo "$CLEAN_NOTES" >> $GITHUB_ENV
           echo "EOF" >> $GITHUB_ENV
 
       # --------------------------------------------
-      # Checkout repository
-      # --------------------------------------------
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          token: ${{ secrets.PAT }}
-          fetch-depth: 0
-
-      # --------------------------------------------
-      # Create GitHub Release (NO build artifacts)
+      # Create GitHub Release (NO artifacts)
       # --------------------------------------------
       - name: Create GitHub Release
         env:
