@@ -61,7 +61,7 @@ jobs:
           fi
 
       # --------------------------------------------
-      # Sync assets from primary repo (OPTIONAL but recommended)
+      # Sync assets from primary repo 
       # --------------------------------------------
       - name: Sync assets from primary repo
         env:
@@ -73,6 +73,8 @@ jobs:
 
           rsync -av --delete /tmp/wysiwyg-main/js/ public/js/
           rsync -av --delete /tmp/wysiwyg-main/css/ public/css/
+          rsync -av --delete /tmp/wysiwyg-main/js/ admin/js/
+          rsync -av --delete /tmp/wysiwyg-main/css/ admin/css/
 
       # --------------------------------------------
       # Update JS/CSS version references
