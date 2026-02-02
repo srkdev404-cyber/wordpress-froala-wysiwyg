@@ -41,7 +41,29 @@ jobs:
           fi
 
           echo "VERSION=$VERSION" >> $GITHUB_ENV
-          echo "Dispatching version $VERSION"
+          echo "🚀 Incoming version: $VERSION"
+
+      # --------------------------------------------
+      # Compare current version vs incoming version
+      # --------------------------------------------
+      - name: Compare current version
+        run: |
+          CURRENT_VERSION=$(grep -RhoE '[0-9]+\.[0-9]+\.[0-9]+' public admin | head -n 1)
+
+          if [ -z "$CURRENT_VERSION" ]; then
+            echo "❌ Unable to determine current version from repository"
+            exit 1
+          fi
+
+          echo "📦 Current version : $CURRENT_VERSION"
+          echo "🚀 Incoming version: $VERSION"
+
+          if [ "$CURRENT_VERSION" = "$VERSION" ]; then
+            echo "⛔ Versions are identical. Denying PR creation."
+            exit 0
+          fi
+
+          echo "✅ Version change detected. Proceeding."
 
       # --------------------------------------------
       # Prepare release branch
@@ -61,7 +83,7 @@ jobs:
           fi
 
       # --------------------------------------------
-      # Sync assets from primary repo 
+      # Sync assets from primary repo
       # --------------------------------------------
       - name: Sync assets from primary repo
         env:
@@ -93,11 +115,11 @@ jobs:
           git config user.email "srkdev404@gmail.com"
 
           git add public admin
-          git commit -m "chore: release WordPress plugin v${VERSION}" || echo "Nothing to commit"
+          git commit -m "chore: release WordPress plugin v${VERSION}" || echo "ℹ️ Nothing to commit"
           git push origin "$BRANCH"
 
       # --------------------------------------------
-      # Create Pull Request (Rails-style, release-gated)
+      # Create Pull Request (release-gated)
       # --------------------------------------------
       - name: Create Pull Request
         env:
@@ -107,7 +129,7 @@ jobs:
           git fetch origin master
 
           if git diff --quiet origin/master..."$BRANCH"; then
-            echo "ℹ️ No commits between $BRANCH and master. Skipping PR creation."
+            echo "ℹ️ No changes between $BRANCH and master. Skipping PR."
             exit 0
           fi
 
@@ -120,4 +142,4 @@ jobs:
             --head "$BRANCH" \
             --title "Release v${VERSION}" \
             --body "$PR_BODY" \
-            || echo "Pull request already exists"
+            || echo "ℹ️ Pull request already exists"
